@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 2.8)
 project(KITTILoopDetector)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
-    "${PROJECT_SOURCE_DIR}/cmake_modules/")
-
+LIST(APPEND CMAKE_MODULE_PATH 
+  "${PROJECT_SOURCE_DIR}/cmake_modules/"
+  "${g2o_SOURCE_DIR}/cmake_modules/")
+message("cmake_module_path " ${CMAKE_MODULE_PATH})
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
@@ -47,35 +48,37 @@ IF(HAS_BUNDLER_V4)
   MESSAGE(FATAL_ERROR "cannot find library 'lib5point' or 'libmatrix' or 'imagelib' - this will not work ...")
 ENDIF()
 
-FIND_PACKAGE(OpenCV REQUIRED) # do not put findOpencv.cmake in cmake_module_path which causes an error
+find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Cholmod REQUIRED)
-FIND_PACKAGE(SuiteSparse REQUIRED)
+find_package(SuiteSparse REQUIRED)
+find_package(G2O REQUIRED)
+find_package(Sophus REQUIRED)
 
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.45.0 COMPONENTS system thread REQUIRED)
 
-SET(g2o_INCLUDE_DIR $ENV{HOME}/ScaViSLAM/svslocal/include) # g2o, sophus
-SET(g2o_LIBRARY_DIR $ENV{HOME}/ScaViSLAM/svslocal/lib)
-link_directories(${g2o_LIBRARY_DIR})
+message("g2o_INCLUDE_DIR " ${G2O_INCLUDE_DIR})
+message("g2o_LIBRARY_DIR " ${G2O_LIBRARY_DIR})
+message("g2o_LIBRARIES " ${G2O_LIBRARIES})
+message("Sophus_INCLUDE_DIR " ${Sophus_INCLUDE_DIR})
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build)
 
-include_directories(${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} 
-$ENV{HOME}/DLoopDetector_demo/DBoW2
-$ENV{HOME}/DLoopDetector_demo/DUtils
-$ENV{HOME}/DLoopDetector_demo/DUtilsCV
-$ENV{HOME}/DLoopDetector_demo/DVision
-$ENV{HOME}/DLoopDetector_demo/DLoopDetector
+include_directories(${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS}
+${DLoopDetector_PATH}/DBoW2
+${DLoopDetector_PATH}/DUtils
+${DLoopDetector_PATH}/DUtilsCV
+${DLoopDetector_PATH}/DVision
+${DLoopDetector_PATH}/DLoopDetector
 #for g2o
+${Sophus_INCLUDE_DIR}
 ${EIGEN3_INCLUDE_DIR}
 ${CHOLMOD_INCLUDE_DIR}
-${CSPARSE_INCLUDE_DIR}
-${g2o_INCLUDE_DIR}
-
-$ENV{HOME}/ScaViSLAM/svslocal/include/TooN
+${G2O_INCLUDE_DIR}
+${TooN_INCLUDE_DIR}
 ${PROJECT_SOURCE_DIR}/g2o_types
 )
 
@@ -96,19 +99,19 @@ cholmod
 csparse
 cxsparse
 ${Boost_LIBRARIES}
-${g2o_LIBRARY_DIR}/libg2o_core.so
-${g2o_LIBRARY_DIR}/libg2o_solver_cholmod.so
-${g2o_LIBRARY_DIR}/libg2o_solver_dense.so
-${g2o_LIBRARY_DIR}/libg2o_stuff.so
-${g2o_LIBRARY_DIR}/libg2o_solver_csparse.so
-${g2o_LIBRARY_DIR}/libg2o_csparse_extension.so
-${g2o_LIBRARY_DIR}/libg2o_types_sba.so
-${g2o_LIBRARY_DIR}/libg2o_types_sim3.so
-${g2o_LIBRARY_DIR}/libg2o_types_slam3d.so
-$ENV{HOME}/DLoopDetector_demo/lib/libDBoW2.so
-$ENV{HOME}/DLoopDetector_demo/lib/libDUtils.so
-$ENV{HOME}/DLoopDetector_demo/lib/libDUtilsCV.so
-$ENV{HOME}/DLoopDetector_demo/lib/libDVision.so
+g2o_core
+g2o_solver_cholmod
+g2o_solver_dense
+g2o_stuff
+g2o_solver_csparse
+g2o_csparse_extension
+g2o_types_sba
+g2o_types_sim3
+g2o_types_slam3d
+${DLoopDetector_PATH}/lib/libDBoW2.so
+${DLoopDetector_PATH}/lib/libDUtils.so
+${DLoopDetector_PATH}/lib/libDUtilsCV.so
+${DLoopDetector_PATH}/lib/libDVision.so
 )
 add_executable(kitti_surf ${SOURCEFILES})
 TARGET_LINK_LIBRARIES(kitti_surf ${LINK_LIBS})
