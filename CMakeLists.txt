@@ -92,6 +92,7 @@ ${vio_common_INCLUDE_DIR}
 )
 
 LIST(APPEND SOURCEFILES
+  FSurf64.cpp
   kitti_surf.cpp 
   drawPTAMPoints.cpp
   bal_example.cpp
