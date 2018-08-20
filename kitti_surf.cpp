@@ -11,13 +11,13 @@
 #include <string>
 
 // DLoopDetector and DBoW2
-#include "DBoW2.h" // defines Surf64Vocabulary
+#include "DBoW2/DBoW2.h" // defines Surf64Vocabulary
 #include "DLoopDetector.h" // defines Surf64LoopDetector
-#include "DUtilsCV.h" // defines macros CVXX 
+#include "DUtilsCV/DUtilsCV.h" // defines macros CVXX
 
 // OpenCV
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
 #if CV24
 #include <opencv2/nonfree/features2d.hpp>
 #endif
@@ -499,23 +499,23 @@ void SurfExtractor::operator() (const cv::Mat &im,
                                 vector<cv::KeyPoint> &keys, vector<vector<float> > &descriptors) const
 {
     // extract surfs with opencv
-    static cv::SURF surf_detector(400);
+    double minHessian = 400;
+    Ptr<xfeatures2d::SURF> surf_detector = xfeatures2d::SURF::create(minHessian);
 
-    surf_detector.extended = 0;
-
-    keys.clear(); // opencv 2.4 does not clear the vector
-    vector<float> plain;
-    surf_detector(im, cv::Mat(), keys, plain);
+    keys.clear();
+    surf_detector->detect(im, keys);
+    Mat descrip;
+    surf_detector->compute(im, keys, descrip);
 
     // change descriptor format
-    const int L = surf_detector.descriptorSize();
-    descriptors.resize(plain.size() / L);
-
-    unsigned int j = 0;
-    for(unsigned int i = 0; i < plain.size(); i += L, ++j)
+    const int L = surf_detector->descriptorSize();
+    descriptors.resize(descrip.rows);
+    for(int j = 0; j < descrip.rows; ++j)
     {
         descriptors[j].resize(L);
-        std::copy(plain.begin() + i, plain.begin() + i + L, descriptors[j].begin());
+        for (int i = 0; i < L; ++i) {
+            descriptors[j][i] = descrip.at<float>(j, i);
+        }
     }
 }
 
@@ -1224,6 +1224,18 @@ void readOptimizedSim3PoseFile
     cout<<"Num of lines:"<<lineNum<<endl;
 }
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+/// SURF64 Vocabulary
+typedef DBoW2::TemplatedVocabulary<DBoW2::FSurf64::TDescriptor, DBoW2::FSurf64>
+  Surf64Vocabulary;
+
+/// SURF64 Database
+typedef DBoW2::TemplatedDatabase<DBoW2::FSurf64::TDescriptor, DBoW2::FSurf64>
+  Surf64Database;
+
+/// SURF64 Loop Detector
+typedef DLoopDetector::TemplatedLoopDetector
+  <FSurf64::TDescriptor, FSurf64> Surf64LoopDetector;
+
 
 int main(int argc, char  * argv[])
 {

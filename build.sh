@@ -5,25 +5,17 @@ CUR_FOLDER=$(pwd)
 echo "$CUR_FOLDER has to be /path/to/sim3opt"
 mkdir -p $CUR_FOLDER/slam_devel
 
+
 rm -rf DLoopDetector
-echo "Download DLoopDetector_demo-1.0.2.tar.gz from http://webdiis.unizar.es/~dorian/index.php?p=33 ..."
-wget http://webdiis.unizar.es/~dorian/dl.php?dl=DLoopDetector-1.0.2.tar.gz
-mv dl.php?dl=DLoopDetector-1.0.2.tar.gz DLoopDetector-1.0.2.tar.gz
-tar xvzf DLoopDetector-1.0.2.tar.gz
-rm DLoopDetector-1.0.2.tar.gz
-
-cp TemplatedLoopDetectorPatch.txt DLoopDetector/TemplatedLoopDetectorPatch.txt
+git clone https://github.com/dorian3d/DLoopDetector.git --recursive
+sed -i '88r TemplatedLoopDetectorPatch.txt' DLoopDetector/include/DLoopDetector/TemplatedLoopDetector.h
 cd DLoopDetector
-sed -i '24i#include <unistd.h>' DUtils/FileFunctions.cpp
-sed -i '77s/ = 1e3;/;/1' DUtils/Profiler.h
-sed -i '78s/ = 1;/;/1' DUtils/Profiler.h
-
-sed -i '37iconst float Profiler::MS = 1e3f;' DUtils/Profiler.cpp
-sed -i '38iconst float Profiler::SECONDS = 1.f;' DUtils/Profiler.cpp
-
-sed -i '96r TemplatedLoopDetectorPatch.txt' DLoopDetector/TemplatedLoopDetector.h
-
+mkdir -p build
+cd build
+cmake .. -DOpenCV_DIR=$OpenCV_DIR -DCMAKE_INSTALL_PREFIX=$CUR_FOLDER/slam_devel/DLoopDetector
 make
+make install
+
 
 cd ..
 git clone https://github.com/RainerKuemmerle/g2o.git
@@ -72,7 +64,7 @@ make
 cd ../..
 mkdir -p build
 cd build
-cmake .. -DCAMKE_BUILD_TYPE=Debug -DOpenCV_DIR=$OpenCV_DIR -DTooN_INCLUDE_DIR=$CUR_FOLDER -DSophus_DIR=$CUR_FOLDER/slam_devel/sophus/lib/cmake/Sophus -Dvio_common_DIR=$CUR_FOLDER/slam_devel/vio_common/lib/cmake/vio_common -Dg2o_SOURCE_DIR=$CUR_FOLDER/g2o -DDLoopDetector_PATH=$CUR_FOLDER/DLoopDetector -Dvio_g2o_SOURCE_DIR=$CUR_FOLDER/vio_g2o
+cmake .. -DCAMKE_BUILD_TYPE=Debug -DOpenCV_DIR=$OpenCV_DIR -DTooN_INCLUDE_DIR=$CUR_FOLDER -DSophus_DIR=$CUR_FOLDER/slam_devel/sophus/lib/cmake/Sophus -Dvio_common_DIR=$CUR_FOLDER/slam_devel/vio_common/lib/cmake/vio_common -Dg2o_SOURCE_DIR=$CUR_FOLDER/g2o -DDLoopDetector_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DLoopDetector -DDBoW2_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DBoW2 -DDLib_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DLib -Dvio_g2o_SOURCE_DIR=$CUR_FOLDER/vio_g2o
 make
 
 

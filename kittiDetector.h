@@ -14,15 +14,19 @@
 #include <string>
 
 // OpenCV
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/xfeatures2d/nonfree.hpp>
+#include <opencv2/opencv.hpp>
 // #include <opencv2/core/eigen.hpp> //for cv2eigen()
 // DLoopDetector and DBoW2
-#include "DBoW2.h"
+#include "DBoW2/DBoW2.h"
+#include "DBoW2/FSurf64.h"
 #include "DLoopDetector.h"
-#include "DUtils.h"
-#include "DUtilsCV.h"
-#include "DVision.h"
+#include "DUtils/DUtils.h"
+#include "DUtilsCV/DUtilsCV.h"
+#include "DVision/DVision.h"
 
 #ifdef USE_KLEIN
 //for Klein's 5 point algorithm implementation
@@ -85,7 +89,7 @@ public:
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /// This functor extracts SURF64 descriptors in the required format
-class SurfExtractor: public FeatureExtractor<FSurf64::TDescriptor>
+class SurfExtractor: public FeatureExtractor<DBoW2::FSurf64::TDescriptor>
 {
 public:
     /**
@@ -267,179 +271,6 @@ static TooN::Vector<3> rotro2eu(TooN::Matrix<3> R)
     return euler;
 }
 
-// this function is copied from opencv 3.0, five-point.cpp, as opencv249 do not have 5 point algorithm
-void decomposeEssentialMat( InputArray _E, OutputArray _R1, OutputArray _R2, OutputArray _t )
-{
-    Mat E = _E.getMat().reshape(1, 3);
-    CV_Assert(E.cols == 3 && E.rows == 3);
-
-    Mat D, U, Vt;
-    SVD::compute(E, D, U, Vt);
-
-    if (determinant(U) < 0) U *= -1.;
-    if (determinant(Vt) < 0) Vt *= -1.;
-
-    Mat W = (Mat_<double>(3, 3) << 0, 1, 0, -1, 0, 0, 0, 0, 1);
-    W.convertTo(W, E.type());
-
-    Mat R1, R2, t;
-    R1 = U * W * Vt;
-    R2 = U * W.t() * Vt;
-    t = U.col(2) * 1.0;
-
-    R1.copyTo(_R1);
-    R2.copyTo(_R2);
-    t.copyTo(_t);
-}
-
-int recoverPose( InputArray E, InputArray _points1, InputArray _points2, OutputArray _R,
-                 OutputArray _t, double focal, Point2d pp, InputOutputArray _mask)
-{
-    Mat points1, points2;
-    _points1.getMat().copyTo(points1);
-    _points2.getMat().copyTo(points2);
-
-    int npoints = points1.checkVector(2);
-    CV_Assert( npoints >= 0 && points2.checkVector(2) == npoints &&
-               points1.type() == points2.type());
-
-    if (points1.channels() > 1)
-    {
-        points1 = points1.reshape(1, npoints);
-        points2 = points2.reshape(1, npoints);
-    }
-    points1.convertTo(points1, CV_64F);
-    points2.convertTo(points2, CV_64F);
-
-    points1.col(0) = (points1.col(0) - pp.x) / focal;
-    points2.col(0) = (points2.col(0) - pp.x) / focal;
-    points1.col(1) = (points1.col(1) - pp.y) / focal;
-    points2.col(1) = (points2.col(1) - pp.y) / focal;
-
-    points1 = points1.t();
-    points2 = points2.t();
-
-    Mat R1, R2, t;
-    decomposeEssentialMat(E, R1, R2, t);
-    Mat P0 = Mat::eye(3, 4, R1.type());
-    Mat P1(3, 4, R1.type()), P2(3, 4, R1.type()), P3(3, 4, R1.type()), P4(3, 4, R1.type());
-    P1(Range::all(), Range(0, 3)) = R1 * 1.0; P1.col(3) = t * 1.0;
-    P2(Range::all(), Range(0, 3)) = R2 * 1.0; P2.col(3) = t * 1.0;
-    P3(Range::all(), Range(0, 3)) = R1 * 1.0; P3.col(3) = -t * 1.0;
-    P4(Range::all(), Range(0, 3)) = R2 * 1.0; P4.col(3) = -t * 1.0;
-
-    // Do the cheirality check.
-    // Notice here a threshold dist is used to filter
-    // out far away points (i.e. infinite points) since
-    // there depth may vary between postive and negtive.
-    double dist = 50.0;
-    Mat Q;
-    triangulatePoints(P0, P1, points1, points2, Q);
-    Mat mask1 = Q.row(2).mul(Q.row(3)) > 0;
-    Q.row(0) /= Q.row(3);
-    Q.row(1) /= Q.row(3);
-    Q.row(2) /= Q.row(3);
-    Q.row(3) /= Q.row(3);
-    mask1 = (Q.row(2) < dist) & mask1;
-    Q = P1 * Q;
-    mask1 = (Q.row(2) > 0) & mask1;
-    mask1 = (Q.row(2) < dist) & mask1;
-
-    triangulatePoints(P0, P2, points1, points2, Q);
-    Mat mask2 = Q.row(2).mul(Q.row(3)) > 0;
-    Q.row(0) /= Q.row(3);
-    Q.row(1) /= Q.row(3);
-    Q.row(2) /= Q.row(3);
-    Q.row(3) /= Q.row(3);
-    mask2 = (Q.row(2) < dist) & mask2;
-    Q = P2 * Q;
-    mask2 = (Q.row(2) > 0) & mask2;
-    mask2 = (Q.row(2) < dist) & mask2;
-
-    triangulatePoints(P0, P3, points1, points2, Q);
-    Mat mask3 = Q.row(2).mul(Q.row(3)) > 0;
-    Q.row(0) /= Q.row(3);
-    Q.row(1) /= Q.row(3);
-    Q.row(2) /= Q.row(3);
-    Q.row(3) /= Q.row(3);
-    mask3 = (Q.row(2) < dist) & mask3;
-    Q = P3 * Q;
-    mask3 = (Q.row(2) > 0) & mask3;
-    mask3 = (Q.row(2) < dist) & mask3;
-
-    triangulatePoints(P0, P4, points1, points2, Q);
-    Mat mask4 = Q.row(2).mul(Q.row(3)) > 0;
-    Q.row(0) /= Q.row(3);
-    Q.row(1) /= Q.row(3);
-    Q.row(2) /= Q.row(3);
-    Q.row(3) /= Q.row(3);
-    mask4 = (Q.row(2) < dist) & mask4;
-    Q = P4 * Q;
-    mask4 = (Q.row(2) > 0) & mask4;
-    mask4 = (Q.row(2) < dist) & mask4;
-
-    mask1 = mask1.t();
-    mask2 = mask2.t();
-    mask3 = mask3.t();
-    mask4 = mask4.t();
-
-    // If _mask is given, then use it to filter outliers.
-    if (!_mask.empty())
-    {
-        Mat mask = _mask.getMat();
-        CV_Assert(mask.size() == mask1.size());
-        bitwise_and(mask, mask1, mask1);
-        bitwise_and(mask, mask2, mask2);
-        bitwise_and(mask, mask3, mask3);
-        bitwise_and(mask, mask4, mask4);
-    }
-    if (_mask.empty() && _mask.needed())
-    {
-        _mask.create(mask1.size(), CV_8U);
-    }
-
-    CV_Assert(_R.needed() && _t.needed());
-    _R.create(3, 3, R1.type());
-    _t.create(3, 1, t.type());
-
-    int good1 = countNonZero(mask1);
-    int good2 = countNonZero(mask2);
-    int good3 = countNonZero(mask3);
-    int good4 = countNonZero(mask4);
-
-    if (good1 >= good2 && good1 >= good3 && good1 >= good4)
-    {
-        R1.copyTo(_R);
-        t.copyTo(_t);
-        if (_mask.needed()) mask1.copyTo(_mask);
-        return good1;
-    }
-    else if (good2 >= good1 && good2 >= good3 && good2 >= good4)
-    {
-        R2.copyTo(_R);
-        t.copyTo(_t);
-        if (_mask.needed()) mask2.copyTo(_mask);
-        return good2;
-    }
-    else if (good3 >= good1 && good3 >= good2 && good3 >= good4)
-    {
-        t = -t;
-        R1.copyTo(_R);
-        t.copyTo(_t);
-        if (_mask.needed()) mask3.copyTo(_mask);
-        return good3;
-    }
-    else
-    {
-        t = -t;
-        R2.copyTo(_R);
-        t.copyTo(_t);
-        if (_mask.needed()) mask4.copyTo(_mask);
-        return good4;
-    }
-}
-
-
 // extract camera extrinsics from essential matrix which is estimated with matched points, points1 and points2
 // points1 observed by camera 1, points2 by camera 2,
 // output, Rc12c2 is the rotation from camera 1 frame to camera 2 frame,
@@ -449,14 +280,17 @@ int recoverPose( InputArray E, InputArray _points1, InputArray _points2, OutputA
 void ExtractCameras(vector<Point2f>& points1, vector<Point2f>& points2, Mat &Rc12c2, Mat& tc1inc2, const Mat & A){
 
     Mat mask;//(points1.size(),1, CV_8U,0);
-    //fundamental matrix computed using matching keypoints
-    cv::Mat F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3, 0.99, mask);
-    Mat E = A.t() * F * A;
+    Mat E;
     double focal=A.at<double>(0,0);
     Point2d pp(A.at<double>(0,2), A.at<double>(1,2));
-    //Mat E=findEssentialMat(points1, points2, focal, pp, RANSAC, 0.999, 1.0, mask);
-    recoverPose(E, points1, points2, Rc12c2, tc1inc2, focal, pp, mask);
 
+    if (0) {
+        cv::Mat F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3, 0.99, mask);
+        E = A.t() * F * A;
+    } else {
+        E = cv::findEssentialMat(points1, points2, focal, pp, RANSAC, 0.999, 1.0, mask);
+    }
+    cv::recoverPose(E, points1, points2, Rc12c2, tc1inc2, focal, pp, mask);
 }
 
 // load a keyframe file in binary format which is the output of my sequential PTAMM by using KLT tracker
@@ -1154,8 +988,9 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
     vector<cv::KeyPoint> keys[2];//used for SURF features
     Mat descriptors[2];//feature descriptors
     int minHessian = 400;
-    SurfFeatureDetector detector( minHessian );
-    SurfDescriptorExtractor extractor;
+
+    Ptr<xfeatures2d::SURF> surf = xfeatures2d::SURF::create(minHessian);
+
     FlannBasedMatcher matcher;
 #if USE_KNN_MATCH
     std::vector< std::vector< DMatch > > matches;
@@ -1234,8 +1069,8 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
         cv::Mat im0= cv::imread(buffer, 0); // grey scale
         // get features
         profiler.profile("features");
-        detector.detect( im0, keys[0] );
-        extractor.compute( im0, keys[0], descriptors[0]);
+        surf->detect( im0, keys[0] );
+        surf->compute( im0, keys[0], descriptors[0]);
         profiler.stop();
         // get image 2
         sprintf(buffer, "%s/%06d.png", m_imagedir.c_str(),secondFrame);
@@ -1243,8 +1078,8 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
 
         // get features
         profiler.profile("features");
-        detector.detect( im1, keys[1] );
-        extractor.compute( im1, keys[1], descriptors[1]);
+        surf->detect( im1, keys[1] );
+        surf->compute( im1, keys[1], descriptors[1]);
         profiler.stop();
 #if USE_KNN_MATCH
         matcher.knnMatch(descriptors[0], descriptors[1], matches, 2);
@@ -1393,13 +1228,15 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
         float resp=0;
         // form the training samples
         Mat trainData[2], responses[2];
-        cv::KNearest *knn[2];
+
+        Ptr<ml::KNearest> knn[] = {ml::KNearest::create(), ml::KNearest::create()};
+
         vector<Point3f> surfPoints[2];
         surfPoints[0].resize(good_matches.size());
         surfPoints[1].resize(good_matches.size());
-        CvMat* nearests = cvCreateMat( 1, K, CV_32FC1);
-        float _sample[2];
-        CvMat sample = Mat( 1, 2, CV_32FC1, _sample );
+        cv::Mat nearests( 1, K, CV_32FC1);
+
+        cv::Mat sample(1, 2, CV_32FC1);
         for(int cap=0; cap<2 ;++cap){
             trainData[cap]=Mat( obsinc[cap].size(), 2, CV_32F);
             responses[cap]=Mat( obsinc[cap].size(), 1, CV_32F);
@@ -1410,24 +1247,28 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
                 responses[cap].at<float>(hermit,0)=ptsinc[cap][hermit].z;
             }
 
-            // learn classifier
-            knn[cap]=new cv::KNearest( trainData[cap], responses[cap], Mat(), true, K );
+            // learn classifier, reference: http://answers.opencv.org/question/90667/how-to-implement-k-nearest-neighbour/
+            knn[cap]->setIsClassifier(false);
+            knn[cap]->setAlgorithmType(cv::ml::KNearest::Types::KDTREE);
+            knn[cap]->setDefaultK(K);
+            knn[cap]->train(trainData[cap], cv::ml::ROW_SAMPLE, responses[cap]);
             for( unsigned int hermit=0; hermit<good_matches.size(); ++hermit )
             {
                 if(cap==0){
-                    sample.data.fl[0] = (float)keys[cap][good_matches[hermit].queryIdx].pt.x;
-                    sample.data.fl[1] = (float)keys[cap][good_matches[hermit].queryIdx].pt.y;
+                    sample.at<float>(0) = (float)keys[cap][good_matches[hermit].queryIdx].pt.x;
+                    sample.at<float>(1) = (float)keys[cap][good_matches[hermit].queryIdx].pt.y;
                 }
                 else{
-                    sample.data.fl[0] = (float)keys[cap][good_matches[hermit].trainIdx].pt.x;
-                    sample.data.fl[1] = (float)keys[cap][good_matches[hermit].trainIdx].pt.y;
+                    sample.at<float>(0) = (float)keys[cap][good_matches[hermit].trainIdx].pt.x;
+                    sample.at<float>(1) = (float)keys[cap][good_matches[hermit].trainIdx].pt.y;
                 }
                 // estimate the response and get the neighbors' labels
-                resp = knn[cap]->find_nearest(&sample,K,0,0,nearests,0);
+                cv::Mat res;
+                resp = knn[cap]->findNearest(sample, K, res, nearests);
 
                 Mat measurement(3,1,CV_64F);
-                measurement.at<double>(0)=sample.data.fl[0];
-                measurement.at<double>(1)=sample.data.fl[1];
+                measurement.at<double>(0)=sample.at<float>(0);
+                measurement.at<double>(1)=sample.at<float>(1);
                 measurement.at<double>(2)=1;
                 measurement=resp*invK*measurement;
                 surfPoints[cap][hermit].x=(float)measurement.at<double>(0);

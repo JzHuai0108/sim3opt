@@ -55,6 +55,9 @@ find_package(SuiteSparse REQUIRED)
 find_package(G2O REQUIRED)
 find_package(Sophus REQUIRED)
 find_package(vio_common REQUIRED)
+find_package(DLoopDetector REQUIRED)
+find_package(DLib REQUIRED)
+find_package(DBoW2 REQUIRED)
 
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
@@ -65,23 +68,24 @@ set(vio_g2o_LIBRARY ${vio_g2o_SOURCE_DIR}/lib/libvio_g2o.so)
 
 message("G2O_INCLUDE_DIR " ${G2O_INCLUDE_DIR})
 message("G2O_CORE_LIBRARY " ${G2O_CORE_LIBRARY})
-
+message("OpenCV_LIBS " ${OpenCV_LIBS})
 message("Sophus_INCLUDE_DIR " ${Sophus_INCLUDE_DIR})
+message("DLoopDetector_INCLUDE_DIRS " ${DLoopDetector_INCLUDE_DIRS})
+
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build)
 
 include_directories(${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS}
-${DLoopDetector_PATH}/DBoW2
-${DLoopDetector_PATH}/DUtils
-${DLoopDetector_PATH}/DUtilsCV
-${DLoopDetector_PATH}/DVision
-${DLoopDetector_PATH}/DLoopDetector
+
+${DLoopDetector_INCLUDE_DIRS}
 # for g2o
 ${Sophus_INCLUDE_DIR}
 ${EIGEN3_INCLUDE_DIR}
 ${CHOLMOD_INCLUDE_DIR}
 ${G2O_INCLUDE_DIR}
 ${TooN_INCLUDE_DIR}
+${DLib_INCLUDE_DIRS}
+${DBoW2_INCLUDE_DIRS}
 # for vio_g2o
 ${vio_g2o_INCLUDE_DIR}
 ${vio_common_INCLUDE_DIR}
@@ -103,10 +107,8 @@ ${G2O_STUFF_LIBRARY}
 ${G2O_TYPES_SBA}
 ${G2O_TYPES_SIM3}
 ${G2O_TYPES_SLAM3D}
-${DLoopDetector_PATH}/lib/libDBoW2.so
-${DLoopDetector_PATH}/lib/libDUtils.so
-${DLoopDetector_PATH}/lib/libDUtilsCV.so
-${DLoopDetector_PATH}/lib/libDVision.so
+${DLib_LIBS} 
+${DBoW2_LIBS}
 ${vio_common_LIBRARIES}
 ${vio_g2o_LIBRARY}
 )

@@ -23,6 +23,11 @@ Boost can be installed by
 sudo apt-get install libboost-dev
 ```
 
+OpenCV3 can be installed by
+```
+sudo apt-get install ros-kinetic-opencv3
+```
+
 2. Build
  
 ```

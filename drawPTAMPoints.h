@@ -95,7 +95,7 @@ void figureKITTIBA(const std::string keyFrameInfoDir, const std::string transFil
 // draw the original map points and trajectories output by sequential PTAM based on KLT
 //example: figureKITTI("/media/jianzhuhuai0108/viola/relaylatest/kitticolorseq00img2keyframeinfo400_03",
 // "OriginalMap.txt", RobotVision::Sim3());
-void figureKITTI(const string keyFrameInfoDir, const string outputFile, const RobotVision::Sim3<> S221, bool bBALFormat= true);
+void figureKITTI(const std::string keyFrameInfoDir, const std::string outputFile, const RobotVision::Sim3<> S221, bool bBALFormat= true);
 
 
 #endif
