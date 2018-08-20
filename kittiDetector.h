@@ -46,8 +46,8 @@ const int NUMTRACKERCAMPARAMETERS=5;
 #include <g2o/core/solver.h>
 #include <g2o/core/robust_kernel_impl.h>
 #include <g2o/core/optimization_algorithm_levenberg.h>
-#include <g2o/solvers/cholmod/linear_solver_cholmod.h>
-#include <g2o/solvers/csparse/linear_solver_csparse.h>
+#include <g2o/solvers/eigen/linear_solver_eigen.h>
+
 #include <g2o/solvers/dense/linear_solver_dense.h>
 #include <g2o/types/sba/types_six_dof_expmap.h>
 #include <g2o/solvers/structure_only/structure_only_solver.h>
@@ -879,19 +879,17 @@ void setupG2o(g2o::CameraParameters *cam_params, g2o::SparseOptimizer * optimize
     optimizer->setVerbose(true);
 
 #if SCHUR_TRICK
-    // solver
-    g2o::BlockSolver_6_3::LinearSolverType* linearSolver;
-    linearSolver = new g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>();
-    //linearSolver = new g2o::LinearSolverCSparse<g2o::BlockSolver_6_3::PoseMatrixType>();
+    std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver =
+            g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType> >();
 
-    g2o::BlockSolver_6_3 * solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
-    g2o::OptimizationAlgorithmLevenberg * solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+    g2o::OptimizationAlgorithmLevenberg * solver = new g2o::OptimizationAlgorithmLevenberg(
+                g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
 #else
-    g2o::BlockSolverX::LinearSolverType * linearSolver;
-    linearSolver = new g2o::LinearSolverCholmod<g2o::BlockSolverX::PoseMatrixType>();
-    //linearSolver = new g2o::LinearSolverCSparse<g2o::BlockSolverX::PoseMatrixType>();
-    g2o::BlockSolverX * solver_ptr = new g2o::BlockSolverX(linearSolver);
-    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+    std::unique_ptr<g2o::BlockSolverX::LinearSolverType> linearSolver =
+            g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType> >();
+
+    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(
+                g2o::make_unique<g2o::BlockSolverX>(std::move(linearSolver)));
 #endif
 
     solver->setMaxTrialsAfterFailure(5);
@@ -1074,8 +1072,8 @@ void BAOptimize(vector<Point3f> & pointsXYZ,vector<Point2f>& points1, vector<Poi
     cout<<"2-View BA: Error before/after = "<< init_error<<", "<<final_error<<endl;
 
     // Update Keyframe Positions
-    Quaterniond frame1Quat= v_frame1->estimate().rotation();
-    Vector3d frame1Trans = v_frame1->estimate().translation();
+    Eigen::Quaterniond frame1Quat= v_frame1->estimate().rotation();
+    Eigen::Vector3d frame1Trans = v_frame1->estimate().translation();
     assert(frame1Quat.w()==1.0&&frame1Quat.x()==0.0&&frame1Quat.y()==0.0&&frame1Quat.z()==0.0);
     assert(frame1Trans[0]==0.0&&frame1Trans[1]==0.0&&frame1Trans[2]==0.0);
 

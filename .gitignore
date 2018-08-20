@@ -9,4 +9,11 @@ Sophus/
 
 TooN/
 
+vio_common/
+
+vio_g2o/
+
+
 build/
+
+CMakeLists\.txt\.user

@@ -1,0 +1,14 @@
+  DetectionResult(unsigned int rquery=0, unsigned int rmatch=0):status(LOOP_DETECTED),query(rquery), match(rmatch)
+  {}
+  DetectionResult(const DetectionResult &rhs):status(rhs.status), query(rhs.query), match(rhs.match)
+  {}
+
+  DetectionResult & operator=(const DetectionResult&rhs)
+  {
+      if(this==&rhs)
+          return *this;
+      status=rhs.status;
+      query=rhs.query;
+      match=rhs.match;
+      return *this;
+  }

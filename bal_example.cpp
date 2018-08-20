@@ -31,10 +31,10 @@
 #include "g2o/core/solver.h"
 #include "g2o/core/robust_kernel_impl.h"
 #include "g2o/core/optimization_algorithm_levenberg.h"
-#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
+#include "g2o/solvers/eigen/linear_solver_eigen.h"
 #include "g2o/solvers/dense/linear_solver_dense.h"
 #include "g2o/types/sba/types_six_dof_expmap.h"
-//#include "g2o/math_groups/se3quat.h"
+
 #include "g2o/solvers/structure_only/structure_only_solver.h"
 #include "g2o/stuff/command_args.h"
 
@@ -70,20 +70,18 @@ int ba_demo(int argc, char* argv[]){
 
     g2o::SparseOptimizer optimizer;
     optimizer.setVerbose(verbose);
-    g2o::BlockSolver_6_3::LinearSolverType * linearSolver;
+    std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
     if (DENSE) {
-        linearSolver= new g2o::LinearSolverDense<g2o
-                ::BlockSolver_6_3::PoseMatrixType>();
+        linearSolver = g2o::make_unique<g2o::LinearSolverDense<g2o
+                ::BlockSolver_6_3::PoseMatrixType> >();
     } else {
-        linearSolver
-                = new g2o::LinearSolverCholmod<g2o
-                ::BlockSolver_6_3::PoseMatrixType>();
+        linearSolver = g2o::make_unique<g2o::LinearSolverEigen<
+                g2o::BlockSolver_6_3::PoseMatrixType> >();
     }
 
+    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(
+       g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
 
-    g2o::BlockSolver_6_3 * solver_ptr
-            = new g2o::BlockSolver_6_3(linearSolver);
-    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
     optimizer.setAlgorithm(solver);
 
     double focal_length= 718.856;

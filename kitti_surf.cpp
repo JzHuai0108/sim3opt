@@ -23,8 +23,8 @@
 #endif
 //g2o and Sophus
 
-#include "scale_solver.h"
-#include "anchored_points.h"
+#include "vio_g2o/scale_solver.h"
+#include "vio_g2o/anchored_points.h"
 
 #include "sophus/sim3.hpp"
 #include "sophus/se3.hpp"
@@ -547,11 +547,11 @@ void testDirectSim3Optimization(string directFile, bool bUseOneContraint=false)
 
     // Setup three optimizers
     g2o::SparseOptimizer optimizer;
+    std::unique_ptr<g2o::BlockSolverX::LinearSolverType> linearSolver =
+            g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType> >();
 
-    g2o::BlockSolverX::LinearSolverType * linearSolver;
-    linearSolver = new g2o::LinearSolverCholmod<g2o::BlockSolverX::PoseMatrixType>();
-    g2o::BlockSolverX * solver_ptr = new g2o::BlockSolverX(linearSolver);
-    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(
+                g2o::make_unique<g2o::BlockSolverX>(std::move(linearSolver)));
     optimizer.setAlgorithm(solver);
 
     vector<KeyFrame*> vpKFs;
@@ -596,7 +596,7 @@ void testDirectSim3Optimization(string directFile, bool bUseOneContraint=false)
         KeyFrame* pKF = vpKFs[i];
         if(pKF->isBad())
             continue;
-        ScaViSLAM::VertexSim3Expmap* vSim3 = new ScaViSLAM::VertexSim3Expmap();
+        vio::VertexSim3Expmap* vSim3 = new vio::VertexSim3Expmap();
 
         int nIDi = pKF->mnFrameId;
 
@@ -627,7 +627,7 @@ void testDirectSim3Optimization(string directFile, bool bUseOneContraint=false)
         assert(pKF->mnFrameId == mit->trans_id1);
         const long unsigned int nIDj = pConnection->mnFrameId;
 
-        ScaViSLAM::EdgeSim3* esim = new ScaViSLAM::EdgeSim3();
+        vio::EdgeSim3* esim = new vio::EdgeSim3();
         esim->setVertex(1, optimizer.vertex(nIDj));
         esim->setVertex(0, optimizer.vertex(nIDi));
         esim->setMeasurement(mit->mean);
@@ -657,7 +657,7 @@ void testDirectSim3Optimization(string directFile, bool bUseOneContraint=false)
         g2o::Sim3 Sji = Sjw * Swi;
 
 
-        ScaViSLAM::EdgeSim3* e = new ScaViSLAM::EdgeSim3();
+        vio::EdgeSim3* e = new vio::EdgeSim3();
         e->setVertex(1, optimizer.vertex(nIDj));
         e->setVertex(0, optimizer.vertex(nIDi));
         e->setMeasurement(Sji);
@@ -682,7 +682,7 @@ void testDirectSim3Optimization(string directFile, bool bUseOneContraint=false)
         const int nIDi = pKFi->mnFrameId;
         g2o::Sim3 CorrectedSiw;
 
-        ScaViSLAM::VertexSim3Expmap* vSim3 = static_cast<ScaViSLAM::VertexSim3Expmap*>(optimizer.vertex(nIDi));
+        vio::VertexSim3Expmap* vSim3 = static_cast<vio::VertexSim3Expmap*>(optimizer.vertex(nIDi));
         CorrectedSiw=vSim3->estimate();
 
         vCorrectedSwc[nIDi]=CorrectedSiw.inverse();
@@ -722,10 +722,12 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
     num_optimizer = bStepwise? num_optimizer: 3;
     g2o::SparseOptimizer* optimizer = new g2o::SparseOptimizer[num_optimizer];
     for (int jack =0; jack< num_optimizer; ++jack){
-        g2o::BlockSolverX::LinearSolverType * linearSolver;
-        linearSolver = new g2o::LinearSolverCholmod<g2o::BlockSolverX::PoseMatrixType>();
-        g2o::BlockSolverX * solver_ptr = new g2o::BlockSolverX(linearSolver);
-        g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        std::unique_ptr<g2o::BlockSolverX::LinearSolverType> linearSolver =
+                g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType> >();
+
+        g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(
+                    g2o::make_unique<g2o::BlockSolverX>(std::move(linearSolver)));
+
         optimizer[jack].setAlgorithm(solver);
     }
     vector<KeyFrame*> vpKFs;
@@ -771,11 +773,11 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
         KeyFrame* pKF = vpKFs[i];
         if(pKF->isBad())
             continue;
-        ScaViSLAM::G2oVertexScale* vS = new ScaViSLAM::G2oVertexScale();
-        ScaViSLAM::G2oVertexScaleTrans* vST = new ScaViSLAM::G2oVertexScaleTrans();
-        ScaViSLAM::VertexSim3Expmap* vSim3 = NULL;
+        vio::G2oVertexScale* vS = new vio::G2oVertexScale();
+        vio::G2oVertexScaleTrans* vST = new vio::G2oVertexScaleTrans();
+        vio::VertexSim3Expmap* vSim3 = NULL;
         if(num_optimizer ==3)
-            vSim3 = new ScaViSLAM::VertexSim3Expmap();
+            vSim3 = new vio::VertexSim3Expmap();
 
         int nIDi = pKF->mnFrameId;
 
@@ -819,14 +821,14 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
         assert(pKF->mnFrameId == mit->trans_id1);
         const long unsigned int nIDj = pConnection->mnFrameId;
 
-        ScaViSLAM::G2oEdgeScale* es = new ScaViSLAM::G2oEdgeScale();
+        vio::G2oEdgeScale* es = new vio::G2oEdgeScale();
         es->setVertex(1, optimizer[0].vertex(nIDj));
         es->setVertex(0, optimizer[0].vertex(nIDi));
         es->setMeasurement(mit->mean.scale());
         es->information() = matLambdas;
         optimizer[0].addEdge(es);
 
-        ScaViSLAM::G2oEdgeScaleTrans* est = new ScaViSLAM::G2oEdgeScaleTrans();
+        vio::G2oEdgeScaleTrans* est = new vio::G2oEdgeScaleTrans();
         est->setVertex(1, optimizer[1].vertex(nIDj));
         est->setVertex(0, optimizer[1].vertex(nIDi));
         est->setMeasurement(toScaleTrans(mit->mean));
@@ -834,7 +836,7 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
         optimizer[1].addEdge(est);
 
         if(num_optimizer==3){
-            ScaViSLAM::EdgeSim3* esim = new ScaViSLAM::EdgeSim3();
+            vio::EdgeSim3* esim = new vio::EdgeSim3();
             esim->setVertex(1, optimizer[2].vertex(nIDj));
             esim->setVertex(0, optimizer[2].vertex(nIDi));
             esim->setMeasurement(mit->mean);
@@ -857,21 +859,21 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
         g2o::Sim3 Sjw = vScw[nIDj];
         g2o::Sim3 Sji = Sjw * Swi;
 
-        ScaViSLAM::G2oEdgeScale* es = new ScaViSLAM::G2oEdgeScale();
+        vio::G2oEdgeScale* es = new vio::G2oEdgeScale();
         es->setVertex(1, optimizer[0].vertex(nIDj));
         es->setVertex(0, optimizer[0].vertex(nIDi));
         es->setMeasurement(Sji.scale());
         es->information() = matLambdas;
         optimizer[0].addEdge(es);
 
-        ScaViSLAM::G2oEdgeScaleTrans* est = new ScaViSLAM::G2oEdgeScaleTrans();
+        vio::G2oEdgeScaleTrans* est = new vio::G2oEdgeScaleTrans();
         est->setVertex(1, optimizer[1].vertex(nIDj));
         est->setVertex(0, optimizer[1].vertex(nIDi));
         est->setMeasurement(toScaleTrans(Sji));
         est->information() = matLambdast;
         optimizer[1].addEdge(est);
         if(num_optimizer==3){
-            ScaViSLAM::EdgeSim3* e = new ScaViSLAM::EdgeSim3();
+            vio::EdgeSim3* e = new vio::EdgeSim3();
             e->setVertex(1, optimizer[2].vertex(nIDj));
             e->setVertex(0, optimizer[2].vertex(nIDi));
             e->setMeasurement(Sji);
@@ -918,10 +920,10 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
             KeyFrame* pKFi = vpKFs[i];
             const int nIDi = pKFi->mnFrameId;
 
-            ScaViSLAM::G2oVertexScale* vS = static_cast<ScaViSLAM::G2oVertexScale*>(optimizer[0].vertex(nIDi));
+            vio::G2oVertexScale* vS = static_cast<vio::G2oVertexScale*>(optimizer[0].vertex(nIDi));
             vS->setEstimate( allScales[i]);
 
-            ScaViSLAM::G2oVertexScaleTrans* vST = static_cast<ScaViSLAM::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
+            vio::G2oVertexScaleTrans* vST = static_cast<vio::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
             Eigen::Vector4d stw2i =  vST->estimate();
             stw2i[0]= allScales[i];
             vST->setEstimate(stw2i);
@@ -940,10 +942,10 @@ for(size_t i=0;i<vpKFs.size();++i)
 {
     KeyFrame* pKFi = vpKFs[i];
     const int nIDi = pKFi->mnFrameId;
-    ScaViSLAM::G2oVertexScale* vS = static_cast<ScaViSLAM::G2oVertexScale*>(optimizer[0].vertex(nIDi));
+    vio::G2oVertexScale* vS = static_cast<vio::G2oVertexScale*>(optimizer[0].vertex(nIDi));
     double sw2i =  vS->estimate();
 
-    ScaViSLAM::G2oVertexScaleTrans* vST = static_cast<ScaViSLAM::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
+    vio::G2oVertexScaleTrans* vST = static_cast<vio::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
     Eigen::Vector4d v4 = vST->estimate();
     v4[0]= sw2i;
 #if DEBUG
@@ -1005,7 +1007,7 @@ for(size_t i=0;i<vpKFs.size();++i)
     KeyFrame* pKFi = vpKFs[i];
     const int nIDi = pKFi->mnFrameId;
 
-    ScaViSLAM::G2oVertexScaleTrans* vST = static_cast<ScaViSLAM::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
+    vio::G2oVertexScaleTrans* vST = static_cast<vio::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
     Eigen::Vector4d stw2i =  vST->estimate();
     stw2i[0]= allScales[i];
     stw2i.tail<3>()= delta.block(i*3, 0,3,1);
@@ -1025,11 +1027,11 @@ for(size_t i=0;i<vpKFs.size();++i)
             KeyFrame* pKFi = vpKFs[i];
             const int nIDi = pKFi->mnFrameId;
 
-            ScaViSLAM::G2oVertexScaleTrans* vST = static_cast<ScaViSLAM::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
+            vio::G2oVertexScaleTrans* vST = static_cast<vio::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
             Eigen::Vector4d stw2i =  vST->estimate();
             g2o::Sim3 CorrectedSiw(vST->Rw2i.unit_quaternion(), stw2i.tail<3>(), stw2i[0]);
 
-            ScaViSLAM::VertexSim3Expmap* vSim3 = static_cast<ScaViSLAM::VertexSim3Expmap*>(optimizer[2].vertex(nIDi));
+            vio::VertexSim3Expmap* vSim3 = static_cast<vio::VertexSim3Expmap*>(optimizer[2].vertex(nIDi));
             vSim3->setEstimate(CorrectedSiw);
         }
 
@@ -1050,10 +1052,10 @@ for(size_t i=0;i<vpKFs.size();++i)
         const int nIDi = pKFi->mnFrameId;
         g2o::Sim3 CorrectedSiw;
         if(num_optimizer ==3){
-            ScaViSLAM::VertexSim3Expmap* vSim3 = static_cast<ScaViSLAM::VertexSim3Expmap*>(optimizer[2].vertex(nIDi));
+            vio::VertexSim3Expmap* vSim3 = static_cast<vio::VertexSim3Expmap*>(optimizer[2].vertex(nIDi));
             CorrectedSiw=vSim3->estimate();
         }else{
-            ScaViSLAM::G2oVertexScaleTrans* vST = static_cast<ScaViSLAM::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
+            vio::G2oVertexScaleTrans* vST = static_cast<vio::G2oVertexScaleTrans*>(optimizer[1].vertex(nIDi));
             Eigen::Vector4d stw2i =  vST->estimate();
             CorrectedSiw= g2o::Sim3(vST->Rw2i.unit_quaternion(), stw2i.tail<3>(), stw2i[0]);
         }

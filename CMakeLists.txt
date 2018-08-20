@@ -54,15 +54,18 @@ find_package(Cholmod REQUIRED)
 find_package(SuiteSparse REQUIRED)
 find_package(G2O REQUIRED)
 find_package(Sophus REQUIRED)
+find_package(vio_common REQUIRED)
 
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.45.0 COMPONENTS system thread REQUIRED)
+set(vio_g2o_INCLUDE_DIR ${vio_g2o_SOURCE_DIR}/include)
+set(vio_g2o_LIBRARY ${vio_g2o_SOURCE_DIR}/lib/libvio_g2o.so)
 
-message("g2o_INCLUDE_DIR " ${G2O_INCLUDE_DIR})
-message("g2o_LIBRARY_DIR " ${G2O_LIBRARY_DIR})
-message("g2o_LIBRARIES " ${G2O_LIBRARIES})
+message("G2O_INCLUDE_DIR " ${G2O_INCLUDE_DIR})
+message("G2O_CORE_LIBRARY " ${G2O_CORE_LIBRARY})
+
 message("Sophus_INCLUDE_DIR " ${Sophus_INCLUDE_DIR})
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build)
@@ -73,45 +76,40 @@ ${DLoopDetector_PATH}/DUtils
 ${DLoopDetector_PATH}/DUtilsCV
 ${DLoopDetector_PATH}/DVision
 ${DLoopDetector_PATH}/DLoopDetector
-#for g2o
+# for g2o
 ${Sophus_INCLUDE_DIR}
 ${EIGEN3_INCLUDE_DIR}
 ${CHOLMOD_INCLUDE_DIR}
 ${G2O_INCLUDE_DIR}
 ${TooN_INCLUDE_DIR}
-${PROJECT_SOURCE_DIR}/g2o_types
+# for vio_g2o
+${vio_g2o_INCLUDE_DIR}
+${vio_common_INCLUDE_DIR}
 )
 
 LIST(APPEND SOURCEFILES
   kitti_surf.cpp 
   drawPTAMPoints.cpp
   bal_example.cpp
-
-  g2o_types/rand_sampler.cpp
-  g2o_types/scale_solver.cpp
-  g2o_types/anchored_points.cpp
-  g2o_types/maths_utils.cpp
 )
 
 LIST(APPEND LINK_LIBS
 ${OpenCV_LIBS}
-cholmod
-csparse
-cxsparse
 ${Boost_LIBRARIES}
-g2o_core
-g2o_solver_cholmod
-g2o_solver_dense
-g2o_stuff
-g2o_solver_csparse
-g2o_csparse_extension
-g2o_types_sba
-g2o_types_sim3
-g2o_types_slam3d
+${G2O_CORE_LIBRARY}
+${G2O_SOLVER_DENSE}
+${G2O_SOLVER_EIGEN}
+${G2O_STUFF_LIBRARY}
+${G2O_TYPES_SBA}
+${G2O_TYPES_SIM3}
+${G2O_TYPES_SLAM3D}
 ${DLoopDetector_PATH}/lib/libDBoW2.so
 ${DLoopDetector_PATH}/lib/libDUtils.so
 ${DLoopDetector_PATH}/lib/libDUtilsCV.so
 ${DLoopDetector_PATH}/lib/libDVision.so
+${vio_common_LIBRARIES}
+${vio_g2o_LIBRARY}
 )
+
 add_executable(kitti_surf ${SOURCEFILES})
 TARGET_LINK_LIBRARIES(kitti_surf ${LINK_LIBS})
