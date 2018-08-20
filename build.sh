@@ -3,6 +3,7 @@ EIGEN_INCLUDE_DIR=/usr/include/eigen3
 OpenCV_DIR=/opt/ros/kinetic/share/OpenCV-3.3.1
 CUR_FOLDER=$(pwd)
 echo "$CUR_FOLDER has to be /path/to/sim3opt"
+rm -rf $CUR_FOLDER/slam_devel
 mkdir -p $CUR_FOLDER/slam_devel
 
 
