@@ -65,7 +65,7 @@ make
 cd ../..
 mkdir -p build
 cd build
-cmake .. -DCAMKE_BUILD_TYPE=Debug -DOpenCV_DIR=$OpenCV_DIR -DTooN_INCLUDE_DIR=$CUR_FOLDER -DSophus_DIR=$CUR_FOLDER/slam_devel/sophus/lib/cmake/Sophus -Dvio_common_DIR=$CUR_FOLDER/slam_devel/vio_common/lib/cmake/vio_common -Dg2o_SOURCE_DIR=$CUR_FOLDER/g2o -DDLoopDetector_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DLoopDetector -DDBoW2_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DBoW2 -DDLib_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DLib -Dvio_g2o_SOURCE_DIR=$CUR_FOLDER/vio_g2o
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DOpenCV_DIR=$OpenCV_DIR -DTooN_INCLUDE_DIR=$CUR_FOLDER -DSophus_DIR=$CUR_FOLDER/slam_devel/sophus/lib/cmake/Sophus -Dvio_common_DIR=$CUR_FOLDER/slam_devel/vio_common/lib/cmake/vio_common -Dg2o_SOURCE_DIR=$CUR_FOLDER/g2o -DDLoopDetector_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DLoopDetector -DDBoW2_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DBoW2 -DDLib_DIR=$CUR_FOLDER/slam_devel/DLoopDetector/lib/cmake/DLib -Dvio_g2o_SOURCE_DIR=$CUR_FOLDER/vio_g2o
 make
 
 
