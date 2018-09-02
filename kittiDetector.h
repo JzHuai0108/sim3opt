@@ -19,6 +19,9 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/xfeatures2d/nonfree.hpp>
 #include <opencv2/opencv.hpp>
+
+#include<Eigen/StdVector>
+
 // #include <opencv2/core/eigen.hpp> //for cv2eigen()
 // DLoopDetector and DBoW2
 #include "DBoW2/DBoW2.h"
@@ -59,10 +62,8 @@ const int NUMTRACKERCAMPARAMETERS=5;
 
 using namespace DLoopDetector;
 using namespace DBoW2;
-using namespace std;
-using namespace cv;
-
-using namespace Eigen;
+// using namespace std;
+// using namespace cv;
 
 #define USE_KNN_MATCH 0
 #define SCHUR_TRICK 1
@@ -405,6 +406,7 @@ struct SfMKey{
 template <typename Trans, int TransDoF> class Constraint
 {
 public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Constraint(int trans_id1,
                int trans_id2,
                const Trans & mean,
@@ -753,7 +755,7 @@ createG2oPoint(Eigen::Vector3d pos,
 g2oEdgeSE3*
 createG2oEdgeSE3( g2oFrameSE3* v_frame,
                   g2oPoint* v_point,
-                  const Vector2d& f_up,
+                  const Eigen::Vector2d& f_up,
                   double huber_width,
                   double weight=1)
 {
@@ -848,7 +850,7 @@ void BAOptimize(vector<Point3f> & pointsXYZ,vector<Point2f>& points1, vector<Poi
     g2o::SparseOptimizer optimizer;
 
     double focal_length= K.at<double>(0,0);
-    Vector2d principal_point(K.at<double>(0,2), K.at<double>(1,2));
+    Eigen::Vector2d principal_point(K.at<double>(0,2), K.at<double>(1,2));
 
     g2o::CameraParameters * cam_params
             = new g2o::CameraParameters (focal_length, principal_point, 0.);
@@ -888,15 +890,15 @@ void BAOptimize(vector<Point3f> & pointsXYZ,vector<Point2f>& points1, vector<Poi
     optimizer.addVertex(v_frame2);
 
     // Create Point Vertices
-    vector<g2oEdgeSE3*> edges;
+    std::vector<g2oEdgeSE3*> edges;
     for (size_t i=0; i<points1.size(); ++i){
-        g2oPoint* v_pt = createG2oPoint(Vector3d(pointsXYZ[i].x, pointsXYZ[i].y, pointsXYZ[i].z), v_id++, false);
+        g2oPoint* v_pt = createG2oPoint(Eigen::Vector3d(pointsXYZ[i].x, pointsXYZ[i].y, pointsXYZ[i].z), v_id++, false);
         optimizer.addVertex(v_pt);
-        g2oEdgeSE3* e = createG2oEdgeSE3(v_frame1, v_pt, Vector2d(points1[i].x, points1[i].y),
+        g2oEdgeSE3* e = createG2oEdgeSE3(v_frame1, v_pt, Eigen::Vector2d(points1[i].x, points1[i].y),
                                          opt_params.huber_kernel_width);
         optimizer.addEdge(e);
         edges.push_back(e);
-        e = createG2oEdgeSE3(v_frame2, v_pt, Vector2d(points2[i].x, points2[i].y), opt_params.huber_kernel_width);
+        e = createG2oEdgeSE3(v_frame2, v_pt, Eigen::Vector2d(points2[i].x, points2[i].y), opt_params.huber_kernel_width);
         optimizer.addEdge(e);
         edges.push_back(e);
     }
@@ -938,7 +940,7 @@ void BAOptimize(vector<Point3f> & pointsXYZ,vector<Point2f>& points1, vector<Poi
             cerr << "Error: Point " << pointId-2 << " is not a PointXYZ!" << endl;
             return;
         }
-        Vector3d diff(pointsXYZ[pointId-2].x, pointsXYZ[pointId-2].y, pointsXYZ[pointId-2].z);
+        Eigen::Vector3d diff(pointsXYZ[pointId-2].x, pointsXYZ[pointId-2].y, pointsXYZ[pointId-2].z);
         diff-=v_p->estimate();
         sum_diff2 += diff.dot(diff);
     }

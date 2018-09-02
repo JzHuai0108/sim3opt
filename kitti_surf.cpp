@@ -22,8 +22,8 @@
 #if CV24
 #include <opencv2/nonfree/features2d.hpp>
 #endif
-//g2o and Sophus
 
+//g2o and Sophus
 #include "vio_g2o/scale_solver.h"
 #include "vio_g2o/anchored_points.h"
 
@@ -79,7 +79,8 @@ void LoadLoopCoords(const string loopCoordsFile, map<unsigned int, MyKeyFrame> &
 
 //load the computed loop constraints by computeConstraints into loopConstraints vector
 //each constraints has f, s, Rf2s, Tfins
-void LoadLoopConstraints(const string loopConstraintFile, vector<Constraint<SE3<>, 6 > > &loopConstraints)
+void LoadLoopConstraints(const string loopConstraintFile,
+                         std::vector<Constraint<SE3<>, 6>, Eigen::aligned_allocator<Constraint<SE3<>, 6> > > &loopConstraints)
 {
     //load the constraints
     ifstream loopData(loopConstraintFile.c_str(),ios::in);
@@ -141,7 +142,8 @@ void LoadLoopConstraints(const string loopConstraintFile, vector<Constraint<SE3<
     loopData.close();
 }
 
-void LoadLoopConstraints(const string loopConstraintFile, vector<Constraint<g2o::Sim3, 7 > > &loopConstraints)
+void LoadLoopConstraints(const string loopConstraintFile,
+                         std::vector<Constraint<g2o::Sim3, 7>, Eigen::aligned_allocator<Constraint<g2o::Sim3, 7> > > &loopConstraints)
 {
     //load the constraints
     ifstream loopData(loopConstraintFile.c_str(),ios::in);
@@ -451,9 +453,9 @@ void SaveAsSfMInit(string keyFrameInfoDir, string loopPairsFile,
 
 
     cout<<"Saving EGs.txt!"<<endl;
-    vector<Constraint<SE3<>, 6> > constraints;
+    std::vector<Constraint<SE3<>, 6>, Eigen::aligned_allocator<Constraint<SE3<>, 6> > > constraints;
     LoadLoopConstraints(loopConstraintFile, constraints);
-    SE3<> Ps2f;
+    TooN::SE3<> Ps2f;
     TooN::Matrix<3> Rs2f;
     TooN::Vector<3> Tsinf;
     ofstream EGs(EGsFile.c_str(), ofstream::out | ofstream::trunc);
@@ -561,11 +563,11 @@ void testDirectSim3Optimization(string directFile, bool bUseOneContraint=false)
     assert(vpKFs.front()->mnFrameId==0);
     unsigned int nMaxKFid = vpKFs.back()->mnFrameId;
 
-    vector<Constraint<g2o::Sim3, 7 > > loopConnections;
+    std::vector<Constraint<g2o::Sim3, 7>, Eigen::aligned_allocator<Constraint<g2o::Sim3, 7> > > loopConnections;
     LoadLoopConstraints( keyFrameInfoDir+"/loopConstraints.txt",loopConnections);
     if(bUseOneContraint){
         // use only 1 loop constraint
-        Constraint<g2o::Sim3, 7 > tempConstraint= loopConnections.front();
+        Constraint<g2o::Sim3, 7> tempConstraint= loopConnections.front();
         loopConnections.clear();
         loopConnections.push_back(tempConstraint);
     }
@@ -737,10 +739,10 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
     assert(vpKFs.front()->mnFrameId==0);
     unsigned int nMaxKFid = vpKFs.back()->mnFrameId;
 
-    vector<Constraint<g2o::Sim3, 7 > > loopConnections;
+    std::vector<Constraint<g2o::Sim3, 7>, Eigen::aligned_allocator<Constraint<g2o::Sim3, 7> > > loopConnections;
     LoadLoopConstraints( keyFrameInfoDir+"/loopConstraints.txt",loopConnections);
     if(bUseOneContraint){// use only 1 loop constraint
-        Constraint<g2o::Sim3, 7 > tempConstraint= loopConnections.front();
+        Constraint<g2o::Sim3, 7> tempConstraint= loopConnections.front();
         loopConnections.clear();
         loopConnections.push_back(tempConstraint);
     }
@@ -901,7 +903,7 @@ void testStepwiseSim3Optimization(string outputFile, bool bUseOneContraint= fals
             sm1(jack-1 + vpKFs.size(), loopConnections[jack].trans_id2)= -1;
         }
 
-        JacobiSVD<MatrixXd> svd(sm1, ComputeThinV);
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(sm1, Eigen::ComputeThinV);
         assert(svd.matrixV().cols()== num_epoch && svd.matrixV().rows()== num_epoch);
         Eigen::Matrix<double, Eigen::Dynamic, 1> S=svd.singularValues();
         //            cout<<"singular values "<<S.transpose() <<endl;
@@ -1086,17 +1088,17 @@ for(size_t i=0;i<vpKFs.size();++i)
 // estimate similarity transform S_{w_2}^{w_1} between the trainPoses {T_i^{w_1}} and the queryPoses {T_i^{w_2}},
 // both are of same length
 // output the transformed query poses with S_{w_2}^{w_1}
-Matrix4d estimateSimilarityTransform(const std::vector<Sophus::SE3d> &queryPoses, const std::vector<Sophus::SE3d>& trainPoses,
+Eigen::Matrix4d estimateSimilarityTransform(const std::vector<Sophus::SE3d> &queryPoses, const std::vector<Sophus::SE3d>& trainPoses,
                                      std::vector<Sophus::SE3d> & alignedPoses, bool bOnlyScale = false)
 {
     // solve for scales and translation and rotation only using positions
-    MatrixXd mTrainPoints(3, trainPoses.size()), mQueryPoints(3, queryPoses.size());
+    Eigen::MatrixXd mTrainPoints(3, trainPoses.size()), mQueryPoints(3, queryPoses.size());
     for(size_t jack=0; jack< trainPoses.size(); ++jack)
     {
         mTrainPoints.col(jack)= trainPoses[jack].translation();
         mQueryPoints.col(jack)= queryPoses[jack].translation();
     }
-    Matrix4d S221= Matrix4d::Identity();
+    Eigen::Matrix4d S221= Eigen::Matrix4d::Identity();
 
     if(bOnlyScale){
         // method 1 works for KITTI dataset because the initial gt position and orientation are 0
@@ -1143,13 +1145,13 @@ Matrix4d estimateSimilarityTransform(const std::vector<Sophus::SE3d> &queryPoses
 
     // transform query poses
     alignedPoses = queryPoses;
-    Matrix3d tempMat = S221.topLeftCorner<3,3>();
-    Quaterniond q221(tempMat);
+    Eigen::Matrix3d tempMat = S221.topLeftCorner<3,3>();
+    Eigen::Quaterniond q221(tempMat);
     q221.normalize();
     for(size_t jack= 0; jack< trainPoses.size(); ++ jack){
 
         alignedPoses[jack].setQuaternion( q221*queryPoses[jack].unit_quaternion());
-        Vector4d v4;
+        Eigen::Vector4d v4;
         v4.head<3>()= queryPoses[jack].translation();
         v4[3]=1;
         v4 = S221*v4;
@@ -1312,7 +1314,7 @@ int main(int argc, char  * argv[])
         else if(experim == OPTIMIZE_SIM3)
         {// given detected loops, and computed loop constraints, and the initial keyframe poses estimated by a monocular VO,
             // optimize the whole graph of poses over similarity transforms
-            bool bUseOneContraint= false;
+            bool bUseOneContraint= true;
 
             string outputPath = "../data/intermediate/";
             string mkdircmd = "mkdir -p " + outputPath;
@@ -1437,7 +1439,7 @@ int main(int argc, char  * argv[])
             }
             assert(kale== voptFrameID.end() && vgtKFTc2w.size() == voptTc2w.size());
             std::vector<Sophus::SE3d> voptTc2wAligned;
-            Matrix4d S221=estimateSimilarityTransform(voptTc2w, vgtKFTc2w, voptTc2wAligned);
+            Eigen::Matrix4d S221=estimateSimilarityTransform(voptTc2w, vgtKFTc2w, voptTc2wAligned);
             cout<< "estimated similarity transform by umeyama "<<endl<<S221<<endl;
             ofstream debug( (outputPath + "transformed.txt").c_str());
             debug<<"% sim3 transformed result: kf id, sw2i, scaled tiinw, ri2w(qxyzw):"<<endl;
