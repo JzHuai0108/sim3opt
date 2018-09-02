@@ -503,11 +503,11 @@ void SurfExtractor::operator() (const cv::Mat &im,
 {
     // extract surfs with opencv
     double minHessian = 400;
-    Ptr<xfeatures2d::SURF> surf_detector = xfeatures2d::SURF::create(minHessian);
+    cv::Ptr<cv::xfeatures2d::SURF> surf_detector = cv::xfeatures2d::SURF::create(minHessian);
 
     keys.clear();
     surf_detector->detect(im, keys);
-    Mat descrip;
+    cv::Mat descrip;
     surf_detector->compute(im, keys, descrip);
 
     // change descriptor format
@@ -1260,7 +1260,7 @@ int main(int argc, char  * argv[])
             demo(VOC_FILE, IMAGE_DIR, POSE_FILE, IMAGE_W, IMAGE_H);
     cv::Mat cameraMatrix(3,3,cv::DataType<double>::type);
 
-    cameraMatrix = (Mat_<double>(3,3) <<MyKeyFrame::m_f ,0, MyKeyFrame::m_px, 0, MyKeyFrame::m_f, MyKeyFrame::m_py,0,0,1);
+    cameraMatrix = (cv::Mat_<double>(3,3) <<MyKeyFrame::m_f ,0, MyKeyFrame::m_px, 0, MyKeyFrame::m_f, MyKeyFrame::m_py,0,0,1);
 
     int caseNum = atoi(argv[1]);
 

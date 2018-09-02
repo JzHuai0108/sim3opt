@@ -62,8 +62,6 @@ const int NUMTRACKERCAMPARAMETERS=5;
 
 using namespace DLoopDetector;
 using namespace DBoW2;
-// using namespace std;
-// using namespace cv;
 
 #define USE_KNN_MATCH 0
 #define SCHUR_TRICK 1
@@ -278,18 +276,18 @@ static TooN::Vector<3> rotro2eu(TooN::Matrix<3> R)
 // output, Tc1inc2 is the normalized coordinates of the origin of camera 1 frame in camera 2 frame,
 // A is camera matrix K=[fx, 0, cx; 0, fy, cy, 0, 0, 1] in pixel units
 // one drawback of this function is that it doesnot consider the camera distortion
-void ExtractCameras(vector<Point2f>& points1, vector<Point2f>& points2, Mat &Rc12c2, Mat& tc1inc2, const Mat & A){
+void ExtractCameras(std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, cv::Mat &Rc12c2, cv::Mat& tc1inc2, const cv::Mat & A){
 
-    Mat mask;//(points1.size(),1, CV_8U,0);
-    Mat E;
+    cv::Mat mask;//(points1.size(),1, CV_8U,0);
+    cv::Mat E;
     double focal=A.at<double>(0,0);
-    Point2d pp(A.at<double>(0,2), A.at<double>(1,2));
+    cv::Point2d pp(A.at<double>(0,2), A.at<double>(1,2));
 
     if (0) {
         cv::Mat F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3, 0.99, mask);
         E = A.t() * F * A;
     } else {
-        E = cv::findEssentialMat(points1, points2, focal, pp, RANSAC, 0.999, 1.0, mask);
+        E = cv::findEssentialMat(points1, points2, focal, pp, cv::RANSAC, 0.999, 1.0, mask);
     }
     cv::recoverPose(E, points1, points2, Rc12c2, tc1inc2, focal, pp, mask);
 }
@@ -298,8 +296,8 @@ void ExtractCameras(vector<Point2f>& points1, vector<Point2f>& points2, Mat &Rc1
 // filename: keyFrameFile; Pw2c consists of Rw2c, twinc: rotation and translation of the world to camera(this keyframe) transform,
 // obsinframe, the observations involved in this frame, pointsinframe: all the points in world observed in this keyframe
 // so each image observation corresponds to a 3d point in this frame
-void LoadComboKeyFrame(const char *keyFrameFile, Mat & Pw2c, vector<cv::Point2f> &obsinc,
-                       vector<cv::Point3f> &ptsinc)
+void LoadComboKeyFrame(const char *keyFrameFile, cv::Mat & Pw2c, std::vector<cv::Point2f> &obsinc,
+                       std::vector<cv::Point3f> &ptsinc)
 {
     try{
         //load keyframe camera
@@ -323,9 +321,9 @@ void LoadComboKeyFrame(const char *keyFrameFile, Mat & Pw2c, vector<cv::Point2f>
         reader.read ((char*)vecRw2c, sizeof (double)*9);
         reader.read ((char*)vecTwinc, sizeof (double)*3);
         reader.read ((char*)&bFixed, sizeof (bool));
-        Mat Rw2c(3,3,CV_64F, vecRw2c, Mat::AUTO_STEP);
-        Mat Twinc(3,1,CV_64F, vecTwinc, Mat::AUTO_STEP);
-        Pw2c=Mat::eye(4,4, CV_64F);
+        cv::Mat Rw2c(3,3,CV_64F, vecRw2c, cv::Mat::AUTO_STEP);
+        cv::Mat Twinc(3,1,CV_64F, vecTwinc, cv::Mat::AUTO_STEP);
+        Pw2c=cv::Mat::eye(4,4, CV_64F);
         cv::Mat tmp = Pw2c(cv::Rect(0,0,3,3));
         Rw2c.copyTo(tmp);
         tmp = Pw2c(cv::Rect(3,0,1,3));
@@ -338,8 +336,8 @@ void LoadComboKeyFrame(const char *keyFrameFile, Mat & Pw2c, vector<cv::Point2f>
         ptsinc.resize(mapSize);
         unsigned int uid=0;
         double vecpinw[3];
-        Mat pinw(3,1, CV_64F, vecpinw);
-        Mat pinc(3,1, CV_64F, 0);
+        cv::Mat pinw(3,1, CV_64F, vecpinw);
+        cv::Mat pinc(3,1, CV_64F, 0);
         double dCosInitAngle=-1;
         double v2RootPos[2];
         for(int counter=0; counter<mapSize; ++counter){
@@ -442,7 +440,7 @@ public:
     unsigned int imgID;
     unsigned int increment; // used for a KeyFrame involved in loop closure, its feature index
     // need to increment by step when integrating tracks from loop closure and the original tracks
-    vector<SfMKey> keys;// note it holds that keys[i].index==i
+    std::vector<SfMKey> keys;// note it holds that keys[i].index==i
     static string m_imagedir;
     static double m_px, m_py, m_f;
     MyKeyFrame(unsigned int id=0):imgID(id), increment(0){}
@@ -590,17 +588,17 @@ void LoadComboKeyFrame(const char * keyFrameFile, TooN::Matrix<3>& Rw2c, TooN::V
         std::cerr << "Exception in reading keyframe file:"<<e.what()<<endl;
     }
 }
-Mat Transform(Mat Pw2f, Mat ptsinw)
+cv::Mat Transform(cv::Mat Pw2f, cv::Mat ptsinw)
 {
-    Mat R=Pw2f(cv::Rect(0,0,3,3));
-    Mat t=Pw2f(cv::Rect(3,0,1,3));
+    cv::Mat R=Pw2f(cv::Rect(0,0,3,3));
+    cv::Mat t=Pw2f(cv::Rect(3,0,1,3));
     return R*ptsinw+t;
 }
 //read in the ground truth camera pose, Pw2c from poseFile, lineNo, 0 based
 // note in KITTI, the ground truth is Pc2w, we need to invert it
 void ReadCameraPose(const char* poseFile, int lineNo, cv::Mat& Pw2c)
 {
-    Pw2c=Mat::eye(4,4, CV_64F);
+    Pw2c=cv::Mat::eye(4,4, CV_64F);
     fstream f(poseFile, ios::in);
     string s;
     double resort[12]={0};
@@ -789,30 +787,30 @@ runSparseBAOptimizer(g2o::SparseOptimizer* optimizer,
     final_error = optimizer->activeChi2();
 }
 template<typename _Tp, int _rows, int _cols, int _options, int _maxRows, int _maxCols>
-void eigen2cv( const Eigen::Matrix<_Tp, _rows, _cols, _options, _maxRows, _maxCols>& src, Mat& dst )
+void eigen2cv( const Eigen::Matrix<_Tp, _rows, _cols, _options, _maxRows, _maxCols>& src, cv::Mat& dst )
 {
     if( !(src.Flags & Eigen::RowMajorBit) )
     {
-        Mat _src(src.cols(), src.rows(), DataType<_Tp>::type,
+        cv::Mat _src(src.cols(), src.rows(), cv::DataType<_Tp>::type,
                  (void*)src.data(), src.stride()*sizeof(_Tp));
         transpose(_src, dst);
     }
     else
     {
-        Mat _src(src.rows(), src.cols(), DataType<_Tp>::type,
+        cv::Mat _src(src.rows(), src.cols(), cv::DataType<_Tp>::type,
                  (void*)src.data(), src.stride()*sizeof(_Tp));
         _src.copyTo(dst);
     }
 }
 
 template<typename _Tp, int _rows, int _cols, int _options, int _maxRows, int _maxCols>
-void cv2eigen( const Mat& src,
+void cv2eigen( const cv::Mat& src,
                Eigen::Matrix<_Tp, _rows, _cols, _options, _maxRows, _maxCols>& dst )
 {
     CV_DbgAssert(src.rows == _rows && src.cols == _cols);
     if( !(dst.Flags & Eigen::RowMajorBit) )
     {
-        Mat _dst(src.cols, src.rows, DataType<_Tp>::type,
+        cv::Mat _dst(src.cols, src.rows, cv::DataType<_Tp>::type,
                  dst.data(), (size_t)(dst.stride()*sizeof(_Tp)));
         if( src.type() == _dst.type() )
             transpose(src, _dst);
@@ -822,12 +820,12 @@ void cv2eigen( const Mat& src,
             transpose(_dst, _dst);
         }
         else
-            Mat(src.t()).convertTo(_dst, _dst.type());
+            cv::Mat(src.t()).convertTo(_dst, _dst.type());
         CV_DbgAssert(_dst.data == (uchar*)dst.data());
     }
     else
     {
-        Mat _dst(src.rows, src.cols, DataType<_Tp>::type,
+        cv::Mat _dst(src.rows, src.cols, cv::DataType<_Tp>::type,
                  dst.data(), (size_t)(dst.stride()*sizeof(_Tp)));
         src.convertTo(_dst, _dst.type());
         CV_DbgAssert(_dst.data == (uchar*)dst.data());
@@ -844,8 +842,8 @@ void cv2eigen( const Mat& src,
 // Rf2s is the estimated Rf2s,
 // tvec is the estimated tfins, meaning the position of the first camera in the second frame
 // rvec and tvec are to store the output
-void BAOptimize(vector<Point3f> & pointsXYZ,vector<Point2f>& points1, vector<Point2f>& points2, const cv::Mat &K,
-                const OptParams & opt_params, Mat &Rf2sMat, Mat& tfins){
+void BAOptimize(std::vector<cv::Point3f> & pointsXYZ,std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, const cv::Mat &K,
+                const OptParams & opt_params, cv::Mat &Rf2sMat, cv::Mat& tfins){
     double reproj_thresh= sqrt(5.995); //from ORB_SLAM
     g2o::SparseOptimizer optimizer;
 
@@ -948,7 +946,7 @@ void BAOptimize(vector<Point3f> & pointsXYZ,vector<Point2f>& points1, vector<Poi
     // Find Mappoints with too large reprojection error
     const double reproj_thresh_squared = reproj_thresh*reproj_thresh;
     size_t n_incorrect_edges = 0;
-    for(vector<g2oEdgeSE3*>::iterator it_e = edges.begin(); it_e != edges.end(); ++it_e)
+    for(std::vector<g2oEdgeSE3*>::iterator it_e = edges.begin(); it_e != edges.end(); ++it_e)
         if((*it_e)->chi2() > reproj_thresh_squared)
             ++n_incorrect_edges;
 
@@ -981,26 +979,26 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
                     const cv::Mat cameraMatrix,
                     const string coordsFile, const string tracksFile) const
 {
-    Mat invK=cameraMatrix.inv();
+    cv::Mat invK=cameraMatrix.inv();
     cv::Mat distCoeffs(4,1,cv::DataType<double>::type);
     distCoeffs.at<double>(0) = 0;
     distCoeffs.at<double>(1) = 0;
     distCoeffs.at<double>(2) = 0;
     distCoeffs.at<double>(3) = 0;
 
-    vector<cv::KeyPoint> keys[2];//used for SURF features
-    Mat descriptors[2];//feature descriptors
+    std::vector<cv::KeyPoint> keys[2];//used for SURF features
+    cv::Mat descriptors[2];//feature descriptors
     int minHessian = 400;
 
-    Ptr<xfeatures2d::SURF> surf = xfeatures2d::SURF::create(minHessian);
+    cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(minHessian);
 
-    FlannBasedMatcher matcher;
+    cv::FlannBasedMatcher matcher;
 #if USE_KNN_MATCH
     std::vector< std::vector< DMatch > > matches;
 #else
-    std::vector< DMatch >  matches;
+    std::vector< cv::DMatch >  matches;
 #endif
-    std::vector< DMatch > good_matches;
+    std::vector< cv::DMatch > good_matches;
 
     const double boundaryRatio=1.0/10;//if the matches falls into the 1/10 boundary area, discard
     const double skewThreshY=1.0/4;// if the points have two vastly different y's then discard the match
@@ -1011,13 +1009,13 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
     cv::Mat tvec(3,1,cv::DataType<double>::type);
 
 
-    Mat Pw2c[2]; //the world to first camera frame, to second camera frame transform,
-    Mat Pf2s, Rf2s, tfins; //the first to second camera transform, and rotation from first to second camera
-    Pw2c[0]=Mat::eye(4,4, CV_64F);
-    Pw2c[1]=Mat::eye(4,4, CV_64F);
-    Pf2s=Mat::eye(4,4, CV_64F);
-    Rf2s=Mat::eye(3,3, CV_64F);
-    tfins=Mat::zeros(3,1, CV_64F);
+    cv::Mat Pw2c[2]; //the world to first camera frame, to second camera frame transform,
+    cv::Mat Pf2s, Rf2s, tfins; //the first to second camera transform, and rotation from first to second camera
+    Pw2c[0]=cv::Mat::eye(4,4, CV_64F);
+    Pw2c[1]=cv::Mat::eye(4,4, CV_64F);
+    Pf2s=cv::Mat::eye(4,4, CV_64F);
+    Rf2s=cv::Mat::eye(3,3, CV_64F);
+    tfins=cv::Mat::zeros(3,1, CV_64F);
     double euler[3]={0.0};  //a temporary buffer to store the euler angles
     int point_count; //how many matches are found
     std::vector<cv::Point2f> imagePoints; //the projected image points
@@ -1029,7 +1027,7 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
     }
 
     char buffer[300]={'\0'};
-    Mat img_matches;    // an combined image on which the matched pairs are drawn
+    cv::Mat img_matches;    // an combined image on which the matched pairs are drawn
     // prepare profiler to measure times
     DUtils::Profiler profiler;
 
@@ -1065,8 +1063,8 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
 
         keys[0].clear();
         keys[1].clear();
-        Rf2s=Mat(3,3, CV_64F, cvScalar(0.));
-        tfins=Mat(3,1, CV_64F, cvScalar(0.));
+        Rf2s=cv::Mat(3,3, CV_64F, cvScalar(0.));
+        tfins=cv::Mat(3,1, CV_64F, cvScalar(0.));
         // get image 1
         sprintf(buffer, "%s/%06d.png", m_imagedir.c_str(),firstFrame);
         cv::Mat im0= cv::imread(buffer, 0); // grey scale
@@ -1163,8 +1161,8 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
         //(2) compute the rotation and translation with Hartley's 8 point algorithm in OpenCV
         point_count=good_matches.size();
         if(point_count>8){
-            vector<Point2f> points1(point_count);
-            vector<Point2f> points2(point_count);
+            std::vector<cv::Point2f> points1(point_count);
+            std::vector<cv::Point2f> points2(point_count);
             for (int kettle=0;kettle<point_count;++kettle)
             {
                 points1[kettle].x=keys[0][good_matches[kettle].queryIdx].pt.x;
@@ -1189,31 +1187,31 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
         //-- Draw only "good" matches
         cout<<"Good matches: "<<good_matches.size()<<" between "<<keys[0].size()<<" and "<<keys[1].size()<<" points!"<<endl;
         drawMatches( im0, keys[0], im1, keys[1],
-                good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
-                vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+                good_matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1),
+                std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
 
         //-- Show detected matches
-        imshow( "Good Matches for essential matrix", img_matches );
-        waitKey(5);
+        cv::imshow( "Good Matches for essential matrix", img_matches );
+        cv::waitKey(5);
         matches.clear();
 
         // (3) PnP to compute the constraints and (4) Bundle adjustment refinement by G2O
 
-        vector<cv::Point2f> obsinc[2];
-        vector<cv::Point3f> ptsinc[2];
+        std::vector<cv::Point2f> obsinc[2];
+        std::vector<cv::Point3f> ptsinc[2];
 
         sprintf(buffer, "%s/KeyFrame%06d.bin", keyFrameInfoDir.c_str(), firstFrame);
         LoadComboKeyFrame(buffer, Pw2c[0], obsinc[0], ptsinc[0]);
         sprintf(buffer, "%s/KeyFrame%06d.bin", keyFrameInfoDir.c_str(), secondFrame);
         LoadComboKeyFrame(buffer, Pw2c[1], obsinc[1], ptsinc[1]);
-        rvec=Scalar(0);
-        tvec=Scalar(0);
+        rvec=cv::Scalar(0);
+        tvec=cv::Scalar(0);
         imagePoints.clear();
         cv::projectPoints(ptsinc[0], rvec, tvec, cameraMatrix, distCoeffs, imagePoints);
 
         float deltaSum=0;
         for (unsigned int hermit=0; hermit<ptsinc[0].size(); ++hermit){
-            Point2f delta=imagePoints[hermit]-obsinc[0][hermit];
+            cv::Point2f delta=imagePoints[hermit]-obsinc[0][hermit];
             deltaSum+=delta.dot(delta);
         }
         cout<<"firstFrame squared residual: "<<deltaSum<<" on "<<obsinc[0].size()<<" points!"<<endl;
@@ -1222,7 +1220,7 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
 
         deltaSum=0;
         for (unsigned int hermit=0; hermit<ptsinc[1].size(); ++hermit){
-            Point2f delta=(imagePoints[hermit]-obsinc[1][hermit]);
+            cv::Point2f delta=(imagePoints[hermit]-obsinc[1][hermit]);
             deltaSum+=delta.dot(delta);
         }
         cout<<"secondFrame squared residual: "<<deltaSum<<" on "<<obsinc[1].size()<<" points!"<<endl;
@@ -1230,19 +1228,19 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
 
         float resp=0;
         // form the training samples
-        Mat trainData[2], responses[2];
+        cv::Mat trainData[2], responses[2];
 
-        Ptr<ml::KNearest> knn[] = {ml::KNearest::create(), ml::KNearest::create()};
+        cv::Ptr<cv::ml::KNearest> knn[] = {cv::ml::KNearest::create(), cv::ml::KNearest::create()};
 
-        vector<Point3f> surfPoints[2];
+        std::vector<cv::Point3f> surfPoints[2];
         surfPoints[0].resize(good_matches.size());
         surfPoints[1].resize(good_matches.size());
         cv::Mat nearests( 1, K, CV_32FC1);
 
         cv::Mat sample(1, 2, CV_32FC1);
         for(int cap=0; cap<2 ;++cap){
-            trainData[cap]=Mat( obsinc[cap].size(), 2, CV_32F);
-            responses[cap]=Mat( obsinc[cap].size(), 1, CV_32F);
+            trainData[cap]=cv::Mat( obsinc[cap].size(), 2, CV_32F);
+            responses[cap]=cv::Mat( obsinc[cap].size(), 1, CV_32F);
 
             for(unsigned int hermit=0; hermit<obsinc[cap].size(); ++hermit){
                 trainData[cap].at<float>(hermit,0)=obsinc[cap][hermit].x;
@@ -1269,7 +1267,7 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
                 cv::Mat res;
                 resp = knn[cap]->findNearest(sample, K, res, nearests);
 
-                Mat measurement(3,1,CV_64F);
+                cv::Mat measurement(3,1,CV_64F);
                 measurement.at<double>(0)=sample.at<float>(0);
                 measurement.at<double>(1)=sample.at<float>(1);
                 measurement.at<double>(2)=1;
@@ -1282,8 +1280,8 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
         //compute the rotation and translation
         point_count=good_matches.size();
         if(point_count>8){
-            vector<Point2f> points1(point_count);
-            vector<Point2f> points2(point_count);
+            std::vector<cv::Point2f> points1(point_count);
+            std::vector<cv::Point2f> points2(point_count);
 
             std::vector<float> depths[2];
             depths[0].resize(point_count);
@@ -1311,7 +1309,7 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
             it = depths[1].begin()+0.5*depths[1].size();
             std::nth_element(depths[1].begin(), it, depths[1].end());
             sloop=*it/sloop;
-            vector<float> depthRatios;
+            std::vector<float> depthRatios;
             depthRatios.resize(depths[0].size());
             for(unsigned int plow=0; plow<depths[0].size();++plow)
                 depthRatios[plow]=depths[1][plow]/depths[0][plow];
@@ -1344,18 +1342,18 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
         /*drawKeypoints( im0, firstFrame==firstFrame? obsKeys[0]:obsKeys[1], img_keypoints_1, Scalar(0,255,0), DrawMatchesFlags::DRAW_OVER_OUTIMG );
         drawKeypoints( im1, firstFrame==firstFrame? obsKeys[1]:obsKeys[0], img_keypoints_2, Scalar(0,255,0), DrawMatchesFlags::DRAW_OVER_OUTIMG);
         //-- Show detected (drawn) keypoints
-        Mat img_keypoints_1; Mat img_keypoints_2;
+        cv::Mat img_keypoints_1; cv::Mat img_keypoints_2;
         imshow("Keypoints 1", img_keypoints_1 );
         imshow("Keypoints 2", img_keypoints_2 );
         waitKey();
 
-        vector<uchar> status[2]; //status[0] forward searching indicator, status[1] backward searching indicator
-        vector<float> err;
+        std::vector<uchar> status[2]; //status[0] forward searching indicator, status[1] backward searching indicator
+        std::vector<float> err;
         int nWinWidth=21;
         Size winSize(nWinWidth,nWinWidth);
         TermCriteria termcrit(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 20, 0.03);
 
-        vector<Point2f> vfPoints[3];
+        std::vector<cv::Point2f> vfPoints[3];
         vfPoints[0] = obsinc[1];// points in firstFrame tracked from second frame
         vfPoints[1] = obsinc[1];// points in secondFrame tracked reversely from first frame points, vfPoints[0]
 
@@ -1368,7 +1366,7 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
                 3, termcrit, OPTFLOW_USE_INITIAL_FLOW, 0.001);
         for(unsigned int which=0; which<status[0].size(); ++which){// note status[0].size() is constant, but not mlTrailers.size()
                 if(status[0][which]){
-                    Point2f delta=vfPoints[1][which] - obsinc[1][which];
+                    cv::Point2f delta=vfPoints[1][which] - obsinc[1][which];
                     bool bInImage=(vfPoints[0][which].x>=0.f)&&(vfPoints[0][which].y>=0.f)&&
                         (vfPoints[0][which].x<=(m_width-1))&&(vfPoints[0][which].y<=(m_height-1));
 
@@ -1378,7 +1376,7 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
                 if(status[0][which])
                     vfPoints[2].push_back(vfPoints[0][which]);
         }
-        vector<KeyPoint> trackedKeys;
+        std::vector<KeyPoint> trackedKeys;
         for(unsigned int hermit=0; hermit<vfPoints[2].size(); ++hermit)
             trackedKeys.push_back(KeyPoint(vfPoints[2][hermit].x,vfPoints[2][hermit].y, 21));
 
@@ -1392,11 +1390,11 @@ computeConstraints( std::vector< DetectionResult >& listPairs, const string cons
 
         PTAMM::ATANCamera Camera("Camera");
         if(point_count>8){
-            vector<HomographyMatch> vMatches;
+            std::vector<HomographyMatch> vMatches;
             for (int kettle=0;kettle<point_count;++kettle)
             {
                 HomographyMatch m;
-                Point2f point1, point2;
+                cv::Point2f point1, point2;
                 point1.x=keys[0][good_matches[kettle].queryIdx].pt.x;
                 point1.y=keys[0][good_matches[kettle].queryIdx].pt.y;
                 point2.x=keys[1][good_matches[kettle].trainIdx].pt.x;
@@ -1600,16 +1598,16 @@ void demoDetector<TVocabulary, TDetector, TDescriptor>::run
     TDetector detector(voc, params);
 
     // Process images
-    vector<cv::KeyPoint> keys;
-    vector<TDescriptor> descriptors;
+    std::vector<cv::KeyPoint> keys;
+    std::vector<TDescriptor> descriptors;
 
     //get the list of filenames
 
-    vector<int> imgIds=GetKFIndices(keyFrameInfoDir);
+    std::vector<int> imgIds=GetKFIndices(keyFrameInfoDir);
 
     //Is keyframefiles have full directory?
     char buffer[300]={'\0'};
-    vector<string> filenames;
+    std::vector<string> filenames;
     filenames.resize(imgIds.size());
     for(unsigned int count=0; count<imgIds.size();++count)
     {
@@ -1618,7 +1616,7 @@ void demoDetector<TVocabulary, TDetector, TDescriptor>::run
     }
 
     // load robot poses
-    vector<double> xs, ys;
+    std::vector<double> xs, ys;
     readPoseFile(m_posefile.c_str(), xs, ys, imgIds);
 
     // we can allocate memory for the expected number of images
