@@ -423,6 +423,7 @@ public:
 
 //a struct to feed ORB SLAM functions
 struct KeyFrame {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     int mnId; // index of kf in image sequence, 0 based
     int mnFrameId; // index of kf in all kfs, 0 based
     Sophus::SE3d Tw2c;
@@ -1793,10 +1794,6 @@ const
     }
     f.close();
 }
-
-
-
 // ---------------------------------------------------------------------------
-
 #endif
 
