@@ -5,6 +5,7 @@
  * Description: demo application of DLoopDetector
  */
 
+#include <cstdlib> // mkdir
 #include <iostream>
 #include <vector>
 #include <set>
@@ -1312,7 +1313,17 @@ int main(int argc, char  * argv[])
         {// given detected loops, and computed loop constraints, and the initial keyframe poses estimated by a monocular VO,
             // optimize the whole graph of poses over similarity transforms
             bool bUseOneContraint= false;
+
             string outputPath = "../data/intermediate/";
+            string mkdircmd = "mkdir -p " + outputPath;
+            const int dir_err = system(mkdircmd.c_str());
+            if (-1 == dir_err)
+            {
+                std::cerr << "Error creating " << outputPath << "\n";
+                exit(1);
+            } else {
+                std::cout << "Created " << outputPath << "\n";
+            }
             string outputFile= outputPath + "stepwise_2solvers.txt";
             testStepwiseSim3Optimization(outputFile, bUseOneContraint);
 
@@ -1373,6 +1384,15 @@ int main(int argc, char  * argv[])
             // given optimized poses which compose a trajectory,
             // estimate the similarity transform between the ground truth and optimized trajectory
             string outputPath = "../data/intermediate/";
+            string mkdircmd = "mkdir -p " + outputPath;
+            const int dir_err = system(mkdircmd.c_str());
+            if (-1 == dir_err)
+            {
+                std::cerr << "Error creating " << outputPath << "\n";
+                exit(1);
+            } else {
+                std::cout << "Created " << outputPath << "\n";
+            }
 #if 1
             string sim3OptimizedFile = outputPath + "direct_pure.txt";
             string outputFile= outputPath + "LC7map_direct.txt";
@@ -1465,6 +1485,15 @@ int main(int argc, char  * argv[])
         {
             // call a modified version of bal_example of g2o so that the optimized values can be output into BAL format
             string outputPath = "../data/intermediate/";
+            string mkdircmd = "mkdir -p " + outputPath;
+            const int dir_err = system(mkdircmd.c_str());
+            if (-1 == dir_err)
+            {
+                std::cerr << "Error creating " << outputPath << "\n";
+                exit(1);
+            } else {
+                std::cout << "Created " << outputPath << "\n";
+            }
             string problemBAL = outputPath + "OriginalMap.txt";
             string sStatistic = outputPath + "balstats.txt";
             string sMapAfterBA = outputPath + "tempMapAfterBA6.txt";
